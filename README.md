@@ -1,3 +1,58 @@
+
+El proyecto Insignias es una implementación de la plataforma edX [code.edx.org](http://code.edx.org/) para la capacitación de funcionarios públicos en el gobierno mexicano.
+
+
+Instalación
+------------
+
+Ir al [repo de configuración](https://github.com/edx/configuration) para la instalación:
+
+* [edX Developer Stack](https://github.com/edx/configuration/wiki/edX-Developer-Stack)
+<br/>Instrucciones para los desarrolladores.
+* [edX Production Stack](https://github.com/edx/configuration/wiki/edX-Production-Stack)
+<br/>Utilizando Vagrant para poner en producción.
+* [edX Ubuntu 12.04 64-bit Installation](https://github.com/edx/configuration/wiki/edX-Ubuntu-12.04-64-bit-Installation)
+<br/>Guía para la instalación en Ubuntu 12.04 server.
+
+
+Licencia
+-------
+El código en este repositorio esta bajo la licencia AGPL versión 3 Ir a [`LICENCIA`](https://github.com/edx/edx-platform/blob/master/LICENCIA) para más detalles
+
+
+Documentación
+-------------
+
+La documentación puede ser vista en
+[Documentación](http://elviejo79.github.io/starter-book/)
+
+Ayuda
+------------
+
+Aquí se encuentran los mailing lists para ayuda:
+
+* [openedx-ops](https://groups.google.com/forum/#!forum/openedx-ops):
+  Relacionado a la instalación y correr open edx.
+* [openedx-translation](https://groups.google.com/forum/#!forum/openedx-translation):
+  Todo lo relacionado a las traducciones.
+* [openedx-analytics](https://groups.google.com/forum/#!forum/openedx-analytics):
+  Lo relacionado con los *analytics* en Open edX.
+* [edx-code](https://groups.google.com/forum/#!forum/edx-code):
+  Relacionado al código de open edx.
+
+Canal IRC: [`#edx-code` on Freenode](http://webchat.freenode.net/?channels=edx-code).
+
+Seguimiento
+-------------
+
+[Open Edx usa Jira](https://openedx.atlassian.net/), no tickets de GitHub. 
+[guías para el llenado de reportes de bugs](https://openedx.atlassian.net/wiki/display/SUST/How+to+File+a+Quality+Bug+Report).
+Gracias!
+
+
+
+-------------------------
+
 This is the main edX platform which consists of LMS and Studio.
 
 See [code.edx.org](http://code.edx.org/) for other parts of the edX code base.
