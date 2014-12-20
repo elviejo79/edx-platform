@@ -54,10 +54,7 @@ var edx = edx || {};
 
         saveSettings: function(event) {
             event.preventDefault();
-            this.cohortFormView.saveForm(function(options) {
-                // TODO: implement notifications!
-                window.alert('Notification: ' + options);
-            });
+            this.cohortFormView.saveForm();
         },
 
         setCohort: function(cohort) {

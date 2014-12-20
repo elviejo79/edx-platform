@@ -4,7 +4,8 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
         describe("Cohorts View", function () {
             var catLoversInitialCount = 123, dogLoversInitialCount = 456, unknownUserMessage,
                 createMockCohort, createMockCohorts, createMockContentGroups, createCohortsView, cohortsView,
-                requests, respondToRefresh, verifyMessage, verifyNoMessage, verifyDetailedMessage, verifyHeader;
+                requests, respondToRefresh, verifyMessage, verifyNoMessage, verifyDetailedMessage, verifyHeader,
+                expectCohortAddRequest, getAddModal;
 
             createMockCohort = function (name, id, user_count) {
                 return {
@@ -32,7 +33,7 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
 
             createCohortsView = function (test, initialCohortID, initialCohorts) {
                 var cohorts = new CohortCollection(initialCohorts || createMockCohorts(), {parse: true});
-                cohorts.url = '/mock_service';
+                cohorts.url = '/mock_service/cohorts';
                 requests = AjaxHelpers.requests(test);
                 cohortsView = new CohortsView({
                     model: cohorts,
@@ -47,6 +48,22 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
 
             respondToRefresh = function(catCount, dogCount) {
                 AjaxHelpers.respondWithJson(requests, createMockCohorts(catCount, dogCount));
+            };
+
+            expectCohortAddRequest = function(name) {
+                AjaxHelpers.expectJsonRequest(
+                    requests, 'POST', '/mock_service/cohorts',
+                    {
+                        name: name,
+                        user_count: 0,
+                        assignment_type: '',
+                        group_id: null
+                    }
+                );
+            };
+
+            getAddModal = function() {
+                return cohortsView.$('.cohort-management-add-modal');
             };
 
             verifyMessage = function(expectedTitle, expectedMessageType, expectedAction, hasDetails) {
@@ -102,7 +119,7 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
             beforeEach(function () {
                 setFixtures('<ul class="instructor-nav"><li class="nav-item"><<a href data-section="membership" class="active-section">Membership</a></li></ul><div></div>');
                 TemplateHelpers.installTemplate('templates/instructor/instructor_dashboard_2/cohorts');
-                TemplateHelpers.installTemplate('templates/instructor/instructor_dashboard_2/add-cohort-form');
+                TemplateHelpers.installTemplate('templates/instructor/instructor_dashboard_2/cohort-form');
                 TemplateHelpers.installTemplate('templates/instructor/instructor_dashboard_2/cohort-selector');
                 TemplateHelpers.installTemplate('templates/instructor/instructor_dashboard_2/cohort-editor');
                 TemplateHelpers.installTemplate('templates/instructor/instructor_dashboard_2/notification');
@@ -125,7 +142,7 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
                 createCohortsView(this, 1);
                 verifyHeader(1, 'Cat Lovers', catLoversInitialCount);
                 $(cohortsView.getSectionCss("membership")).click();
-                AjaxHelpers.expectRequest(requests, 'GET', '/mock_service');
+                AjaxHelpers.expectRequest(requests, 'GET', '/mock_service/cohorts');
                 respondToRefresh(1001, 2);
                 verifyHeader(1, 'Cat Lovers', 1001);
             });
@@ -205,14 +222,14 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
                     expect(cohortsView.$('.cohort-management-create-form').length).toBe(1);
                     expect(cohortsView.$('.cohort-management-nav')).toHaveClass('is-disabled');
                     expect(cohortsView.$('.cohort-management-group')).toHaveClass('is-hidden');
-                    cohortsView.$('.cohort-create-name').val(defaultCohortName);
+                    cohortsView.$('.cohort-name').val(defaultCohortName);
                     cohortsView.$('.action-save').click();
-                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/add', 'name=New+Cohort');
+                    expectCohortAddRequest(defaultCohortName);
                     AjaxHelpers.respondWithJson(
                         requests,
                         {
-                            success: true,
-                            cohort: { id: 1, name: defaultCohortName }
+                            id: 1,
+                            name: defaultCohortName
                         }
                     );
                     AjaxHelpers.respondWithJson(
@@ -227,75 +244,58 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
                     verifyHeader(1, defaultCohortName, 0);
                     expect(cohortsView.$('.cohort-management-nav')).not.toHaveClass('is-disabled');
                     expect(cohortsView.$('.cohort-management-group')).not.toHaveClass('is-hidden');
-                    expect(cohortsView.$('.cohort-management-create-form').length).toBe(0);
+                    expect(getAddModal().find('.cohort-management-create-form').length).toBe(0);
                 });
 
                 it("trims off whitespace before adding a cohort", function() {
                     createCohortsView(this);
                     cohortsView.$('.action-create').click();
-                    cohortsView.$('.cohort-create-name').val('  New Cohort   ');
+                    cohortsView.$('.cohort-name').val('  New Cohort   ');
                     cohortsView.$('.action-save').click();
-                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/add', 'name=New+Cohort');
+                    expectCohortAddRequest('New Cohort');
                 });
 
                 it("does not allow a blank cohort name to be submitted", function() {
                     createCohortsView(this, 1);
                     cohortsView.$('.action-create').click();
-                    expect(cohortsView.$('.cohort-management-create-form').length).toBe(1);
-                    cohortsView.$('.cohort-create-name').val('');
+                    expect(getAddModal().find('.cohort-management-create-form').length).toBe(1);
+                    cohortsView.$('.cohort-name').val('');
                     expect(cohortsView.$('.cohort-management-nav')).toHaveClass('is-disabled');
                     cohortsView.$('.action-save').click();
                     expect(requests.length).toBe(0);
                     verifyMessage('Please enter a name for your new cohort group.', 'error');
                 });
 
-                it("shows a message when adding a cohort throws a server error", function() {
+                it("shows a message when adding a cohort returns a server error", function() {
                     createCohortsView(this, 1);
                     cohortsView.$('.action-create').click();
-                    expect(cohortsView.$('.cohort-management-create-form').length).toBe(1);
-                    cohortsView.$('.cohort-create-name').val(defaultCohortName);
+                    expect(getAddModal().find('.cohort-management-create-form').length).toBe(1);
+                    cohortsView.$('.cohort-name').val(defaultCohortName);
                     cohortsView.$('.action-save').click();
-                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/add', 'name=New+Cohort');
-                    AjaxHelpers.respondWithError(requests);
+                    AjaxHelpers.respondWithError(requests, 400, {
+                        error: 'You cannot add two cohorts with the same name'
+                    });
                     verifyHeader(1, 'Cat Lovers', catLoversInitialCount);
                     verifyMessage(
-                        "We've encountered an error. Please refresh your browser and then try again.",
+                        'You cannot add two cohorts with the same name',
                         'error'
                     );
-                });
-
-                it("shows a server message if adding a cohort fails", function() {
-                    createCohortsView(this, 1);
-                    cohortsView.$('.action-create').click();
-                    expect(cohortsView.$('.cohort-management-create-form').length).toBe(1);
-                    cohortsView.$('.cohort-create-name').val('Cat Lovers');
-                    cohortsView.$('.action-save').click();
-                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/add', 'name=Cat+Lovers');
-                    AjaxHelpers.respondWithJson(
-                        requests,
-                        {
-                            success: false,
-                            msg: 'You cannot create two cohorts with the same name'
-                        }
-                    );
-                    verifyHeader(1, 'Cat Lovers', catLoversInitialCount);
-                    verifyMessage('You cannot create two cohorts with the same name', 'error');
                 });
 
                 it("is removed when 'Cancel' is clicked", function() {
                     createCohortsView(this, 1);
                     cohortsView.$('.action-create').click();
-                    expect(cohortsView.$('.cohort-management-create-form').length).toBe(1);
+                    expect(getAddModal().find('.cohort-management-create-form').length).toBe(1);
                     expect(cohortsView.$('.cohort-management-nav')).toHaveClass('is-disabled');
                     cohortsView.$('.action-cancel').click();
-                    expect(cohortsView.$('.cohort-management-create-form').length).toBe(0);
+                    expect(getAddModal().find('.cohort-management-create-form').length).toBe(0);
                     expect(cohortsView.$('.cohort-management-nav')).not.toHaveClass('is-disabled');
                 });
 
                 it("shows an error if canceled when no cohorts are defined", function() {
                     createCohortsView(this, null, { cohorts: [] });
                     cohortsView.$('.action-create').click();
-                    expect(cohortsView.$('.cohort-management-create-form').length).toBe(1);
+                    expect(getAddModal().find('.cohort-management-create-form').length).toBe(1);
                     expect(cohortsView.$('.cohort-management-nav')).toHaveClass('is-disabled');
                     cohortsView.$('.action-cancel').click();
                     verifyMessage(
@@ -310,7 +310,7 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
 
                     // First try to save a blank name to create a message
                     cohortsView.$('.action-create').click();
-                    cohortsView.$('.cohort-create-name').val('');
+                    cohortsView.$('.cohort-name').val('');
                     cohortsView.$('.action-save').click();
                     verifyMessage('Please enter a name for your new cohort group.', 'error');
 
@@ -325,7 +325,7 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
 
                     // First try to save a blank name to create a message
                     cohortsView.$('.action-create').click();
-                    cohortsView.$('.cohort-create-name').val('');
+                    cohortsView.$('.cohort-name').val('');
                     cohortsView.$('.action-save').click();
                     verifyMessage('Please enter a name for your new cohort group.', 'error');
 
@@ -366,7 +366,6 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
                     var catLoversUpdatedCount = catLoversInitialCount + 1;
                     createCohortsView(this, 1);
                     addStudents('student@sample.com');
-                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/1/add', 'users=student%40sample.com');
                     respondToAdd({ added: ['student@sample.com'] });
                     respondToRefresh(catLoversUpdatedCount, dogLoversInitialCount);
                     verifyHeader(1, 'Cat Lovers', catLoversUpdatedCount);
@@ -377,7 +376,9 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
                 it('shows an error when adding a student that does not exist', function() {
                     createCohortsView(this, 1);
                     addStudents('unknown@sample.com');
-                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/1/add', 'users=unknown%40sample.com');
+                    AjaxHelpers.expectRequest(
+                        requests, 'POST', '/mock_service/cohorts/1/add', 'users=unknown%40sample.com'
+                    );
                     respondToAdd({ unknown: ['unknown@sample.com'] });
                     respondToRefresh(catLoversInitialCount, dogLoversInitialCount);
                     verifyHeader(1, 'Cat Lovers', catLoversInitialCount);
@@ -392,8 +393,9 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
                     createCohortsView(this, 1);
 
                     addStudents(sixUsers);
-                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/1/add',
-                            'users=' + sixUsers.replace(/@/g, "%40").replace(/, /g, "%2C+")
+                    AjaxHelpers.expectRequest(
+                        requests, 'POST', '/mock_service/cohorts/1/add',
+                        'users=' + sixUsers.replace(/@/g, "%40").replace(/, /g, "%2C+")
                     );
                     respondToAdd({ unknown: [
                         'unknown1@sample.com',
@@ -429,7 +431,7 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
                     createCohortsView(this, 1);
 
                     addStudents(sixUsers);
-                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/1/add',
+                    AjaxHelpers.expectRequest(requests, 'POST', '/mock_service/cohorts/1/add',
                             'users=' + sixUsers.replace(/@/g, "%40").replace(/, /g, "%2C+")
                     );
                     respondToAdd({
@@ -480,7 +482,7 @@ define(['backbone', 'jquery', 'js/common_helpers/ajax_helpers', 'js/common_helpe
                 it("shows the initial settings", function() {
                     createCohortsView(this, 1);
                     cohortsView.$('.tab-settings a').click();
-                    expect(cohortsView.$('.cohort-details-name').val()).toBe('Cat Lovers');
+                    expect(cohortsView.$('.cohort-name').val()).toBe('Cat Lovers');
                 });
             });
         });

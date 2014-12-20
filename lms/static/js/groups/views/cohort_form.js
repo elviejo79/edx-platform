@@ -1,6 +1,6 @@
 var edx = edx || {};
 
-(function($, _, Backbone, gettext, interpolate_text, CohortModel) {
+(function($, _, Backbone, gettext, interpolate_text, CohortModel, NotificationModel, NotificationView) {
     'use strict';
 
     edx.groups = edx.groups || {};
@@ -16,6 +16,25 @@ var edx = edx || {};
             this.template = _.template($('#cohort-form-tpl').text());
             this.cohortUserPartitionId = options.cohortUserPartitionId;
             this.contentGroups = options.contentGroups;
+        },
+
+        showNotification: function(options, beforeElement) {
+            var model = new NotificationModel(options);
+            this.removeNotification();
+            this.notification = new NotificationView({
+                model: model
+            });
+            this.notification.render();
+            if (!beforeElement) {
+                beforeElement = this.$('.cohort-management-group');
+            }
+            beforeElement.before(this.notification.$el);
+        },
+
+        removeNotification: function() {
+            if (this.notification) {
+                this.notification.remove();
+            }
         },
 
         render: function() {
@@ -40,10 +59,19 @@ var edx = edx || {};
         },
 
         saveForm: function() {
-            var cohort = this.model,
-                cohortName = this.$('.cohort-create-name').val().trim(),
+            var self = this,
+                cohort = this.model,
+                cohortName = this.$('.cohort-name').val().trim(),
                 groupId = this.getSelectedGroupId(),
-                saveOperation = $.Deferred();
+                saveOperation = $.Deferred(),
+                showAddError;
+            this.removeNotification();
+            showAddError = function(message) {
+                self.showNotification(
+                    {type: 'error', title: message},
+                    self.$('.cohort-management-create-form-name label')
+                );
+            };
             if (cohortName.length > 0) {
                 cohort.save(
                     {name: cohortName, user_partition_id: this.cohortUserPartitionId, group_id: groupId}
@@ -52,15 +80,25 @@ var edx = edx || {};
                         cohort.id = result.id;
                         saveOperation.resolve();
                     } else {
-                        saveOperation.reject(result.error);
+                        showAddError(result.error);
+                        saveOperation.reject();
                     }
-                }).fail(function() {
-                    saveOperation.reject(gettext("We've encountered an error. Please refresh your browser and then try again."));
+                }).fail(function(result) {
+                    var errorMessage = null;
+                    try {
+                        var jsonResponse = JSON.parse(result.responseText);
+                        errorMessage = jsonResponse.error;
+                    } catch(e) {
+                        errorMessage = gettext("We've encountered an error. Please refresh your browser and then try again.");
+                    }
+                    showAddError(errorMessage);
+                    saveOperation.reject();
                 });
             } else {
-                saveOperation.reject(gettext('Please enter a name for your new cohort group.'));
+                showAddError(gettext('Please enter a name for your new cohort group.'));
+                saveOperation.reject();
             }
             return saveOperation.promise();
         }
     });
-}).call(this, $, _, Backbone, gettext, interpolate_text, edx.groups.CohortModel);
+}).call(this, $, _, Backbone, gettext, interpolate_text, edx.groups.CohortModel, NotificationModel, NotificationView);

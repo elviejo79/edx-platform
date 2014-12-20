@@ -125,6 +125,9 @@ var edx = edx || {};
             if (this.notification) {
                 this.notification.remove();
             }
+            if (this.cohortFormView) {
+                this.cohortFormView.removeNotification();
+            }
         },
 
         showAddCohortForm: function(event) {
@@ -163,14 +166,7 @@ var edx = edx || {};
 
         saveAddCohortForm: function(event) {
             var self = this,
-                showAddError,
                 newCohort = this.cohortFormView.model;
-            showAddError = function(message) {
-                self.showNotification(
-                    {type: 'error', title: message},
-                    self.$('.cohort-management-create-form-name label')
-                );
-            };
             event.preventDefault();
             this.removeNotification();
             this.cohortFormView.saveForm()
@@ -185,9 +181,6 @@ var edx = edx || {};
                             )
                         });
                     });
-                })
-                .fail(function(errorMessage) {
-                    showAddError(errorMessage);
                 });
         },
 
